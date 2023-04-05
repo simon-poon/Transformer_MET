@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mettransformer-pod
+spec:
+  containers:
+  - name: gpu-container
+    image: gitlab-registry.nrp-nautilus.io/simon.poon/transformer_met:latest
+    command: ["sleep", "infinity"]
+    resources:
+      limits:
+        memory: 12Gi
+        cpu: "2"
+        nvidia.com/gpu: "1"
+      requests:
+        memory: 12Gi
+        cpu: "1"
+        nvidia.com/gpu: "1"
+    volumeMounts:
+    - mountPath: /mettransformervol
+      name: mettransformervol
+  restartPolicy: Never
+  volumes:
+    - name: mettransformervol
+      persistentVolumeClaim:
+        claimName: mettransformervol
