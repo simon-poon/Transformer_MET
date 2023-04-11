@@ -17,6 +17,7 @@ dependencies:
   - pandas
   - h5py
   - tqdm
+  - weaver
   - scikit-learn
   - autopep8
   - pip
