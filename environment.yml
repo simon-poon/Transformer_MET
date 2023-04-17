@@ -14,6 +14,7 @@ dependencies:
   - python=3.9
   - pytables
   - uproot
+  - pyarrow
   - pandas
   - h5py
   - tqdm
