@@ -1,5 +1,9 @@
 import torch
-from transformer.py import ParticleTransformer
+import sys
+sys.path.insert(1, '/home/jovyan/Transformer_MET')
+from transformer import ParticleTransformer
+from weaver.utils.logger import _logger
+
 
 '''
 Link to the full model implementation:
