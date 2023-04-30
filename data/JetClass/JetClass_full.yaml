@@ -28,10 +28,12 @@ new_variables:
    #charge : np.vectorize(d_encoding['L1PuppiCands_charge'].__getitem__)(to_np_array(tree['L1PuppiCands_charge'], maxN=maxNPuppi, pad=-999.astype(float))
    px : L1PFCands_pt * np.cos(L1PFCands_phi)
    py : L1PFCands_pt * np.sin(L1PFCands_phi)
+   pz : L1PFCands_pt * np.sinh(L1PFCands_eta)
+   energy : np.sqrt(px**2 + py**2 + pz**2)
    part_mask : ak.ones_like(L1PuppiCands_pt)
    true_px : genMet_pt * np.cos(genMet_phi)
    true_py : genMet_pt * np.sin(genMet_phi)
-
+   true_pxpy: np.stack((true_px, true_py),axis=-1)
 preprocess:
   ### method: [manual, auto] - whether to use manually specified parameters for variable standardization
   method: manual
@@ -68,8 +70,8 @@ inputs:
       vars: 
          - [px, null]
          - [py, null]
-         - [px, null]
-         - [py, null]
+         - [pz, null]
+         - [energy, null]
    pf_mask:
       length: 128
       pad_mode: constant
@@ -81,8 +83,7 @@ labels:
    ### [option 1] use `simple` for binary/multi-class classification, then `value` is a list of 0-1 labels
    type: custom
    value:
-      truth_px: true_px
-      truth_py: true_py
+      truth_pxpy: true_pxpy
    ### [option 2] otherwise use `custom` to define the label, then `value` is a map
    # type: custom
    # value: 
