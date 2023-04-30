@@ -515,9 +515,10 @@ class ParticleTransformer(nn.Module):
             fcs = []
             in_dim = embed_dim
             for out_dim, drop_rate in fc_params:
+
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(in_dim, num_classes))
+            fcs.append(nn.Linear(in_dim, in_dim))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
@@ -562,14 +563,15 @@ class ParticleTransformer(nn.Module):
 
             x_cls = self.norm(cls_tokens).squeeze(0)
 
-            # fc
             if self.fc is None:
                 return x_cls
-            output = self.fc(x_cls)
-            if self.for_inference:
-                output = torch.softmax(output, dim=1)
-            # print('output:\n', output)
-            return output
+            weights = self.fc(x_cls)
+            weights_expanded = weights.unsqueeze(-1)
+            pxpy = v[:,0:2,:]
+            pxpy = torch.swapaxes(pxpy, 1, 2)
+            weight_mul = torch.mul(weights_expanded,pxpy)
+            sum_pxpy = torch.sum(weight_mul, dim=1)
+            return sum_pxpy
 
 
 class ParticleTransformerTagger(nn.Module):
