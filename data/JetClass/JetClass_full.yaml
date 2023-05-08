@@ -45,8 +45,8 @@ inputs:
       length: 128
       pad_mode: wrap
       vars: 
-         - [L1PFCands_eta, null]
-         - [L1PFCands_phi, null]
+         - [L1PFCands_eta, null, null, null, null]
+         - [L1PFCands_phi, null, null, null, null]
    pf_features:
       length: 128
       pad_mode: wrap
@@ -58,25 +58,25 @@ inputs:
       ###              clip_min(optional, default=-5), 
       ###              clip_max(optional, default=5), 
       ###              pad_value(optional, default=0)]
-         - [L1PFCands_pt, null]  #clip_max(500)
-         - [L1PFCands_eta, null]
-         - [L1PFCands_phi, null]
-         - [L1PuppiCands_puppiWeight, null]
-         - [L1PuppiCands_pdgId, null]
-         - [L1PuppiCands_charge, null]
+         - [L1PFCands_pt, null, null, null, null]  #clip_max(500)
+         - [L1PFCands_eta, null, null, null, null]
+         - [L1PFCands_phi, null, null, null, null]
+         - [L1PuppiCands_puppiWeight, null, null, null, null]
+         - [L1PuppiCands_pdgId, null, null, null, null]
+         - [L1PuppiCands_charge, null, null, null, null]
    pf_vectors:
       length: 128
       pad_mode: wrap
       vars: 
-         - [px, null]
-         - [py, null]
-         - [pz, null]
-         - [energy, null]
+         - [px, null, null, null, null]
+         - [py, null, null, null, null]
+         - [pz, null, null, null, null]
+         - [energy, null, null, null, null]
    pf_mask:
       length: 128
       pad_mode: constant
       vars: 
-         - [part_mask, null]
+         - [part_mask, null, null, null, null]
 
 labels:
    ### type can be `simple`, `custom`
