@@ -539,10 +539,7 @@ class ParticleTransformer(nn.Module):
         # for onnx: uu (N, C', P, P), uu_idx=None
 
         with torch.no_grad():
-            if not self.for_inference:
-                if uu_idx is not None:
-                    uu = build_sparse_tensor(uu, uu_idx, x.size(-1))
-            x, v, mask, uu = self.trimmer(x, v, mask, uu)
+            mask = mask.bool()
             padding_mask = ~mask.squeeze(1)  # (N, P)
 
         with torch.cuda.amp.autocast(enabled=self.use_amp):
