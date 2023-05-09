@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mettransformer
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-container
+        image: gitlab-registry.nrp-nautilus.io/simon.poon/transformer_met:latest
+        command:
+        - "/bin/bash"
+        - "-c"
+        - " git clone https://github.com/simon-poon/Transformer_MET.git &&
+            cd L1METML &&
+            chmod +x train_JetClass.sh &&
+            ./train_JetClass.sh ParT full"
+        volumeMounts:
+        - mountPath: /mettransformervol
+          name: mettransformervol
+        resources:
+          limits:
+            memory: 50Gi
+            cpu: "10"
+            nvidia.com/gpu: "1"
+          requests:
+            memory: 10Gi
+            cpu: "10"
+            nvidia.com/gpu: "1"
+      volumes:
+      - name: mettransformervol
+        persistentVolumeClaim:
+          claimName: mettransformervol
+
+      restartPolicy: Never
+  backoffLimit: 0
