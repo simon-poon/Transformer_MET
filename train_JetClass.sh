@@ -22,9 +22,7 @@ else
     CMD="weaver"
 fi
 
-epochs=3
-samples_per_epoch=$((10000 * 1024 / $NGPUS))
-samples_per_epoch_val=$((10000 * 128))
+epochs=50
 dataopts="--num-workers 2 --fetch-step 0.01"
 
 # PN, PFN, PCNN, ParT
@@ -55,20 +53,25 @@ if ! [[ "${FEATURE_TYPE}" =~ ^(full|kin|kinpid)$ ]]; then
     exit 1
 fi
 
+
 # currently only Pythia
 SAMPLE_TYPE=Pythia
 
 $CMD \
     --data-train \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set0.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set1.root" \
-    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
-    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set3.root" \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set4.root" \
+    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set5.root" \
+    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set6.root" \
     --data-config data/JetClass/JetClass_${FEATURE_TYPE}.yaml --network-config $modelopts \
-    --model-prefix training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
+    --model-prefix /mettransformervol/saved_models/mettransformer_v1/ \
     $dataopts $batchopts \
-    --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
-    --optimizer ranger --log logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --num-epochs $epochs --gpus 1 \
+    --optimizer adam --log /mettransformervol/logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}${suffix} \
     --regression-mode \
     "${@:3}"
