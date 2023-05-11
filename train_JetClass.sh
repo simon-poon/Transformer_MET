@@ -29,7 +29,7 @@ dataopts="--num-workers 2 --fetch-step 0.01"
 model=$1
 if [[ "$model" == "ParT" ]]; then
     modelopts="example_ParticleTransformer.py --use-amp"
-    batchopts="--batch-size 512 --start-lr 1e-3"
+    batchopts="--batch-size 256 --start-lr 1e-3"
 elif [[ "$model" == "PN" ]]; then
     modelopts="networks/example_ParticleNet.py"
     batchopts="--batch-size 512 --start-lr 1e-2"
