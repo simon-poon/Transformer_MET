@@ -12,9 +12,23 @@ spec:
         - "/bin/bash"
         - "-c"
         - " git clone https://github.com/simon-poon/Transformer_MET.git &&
-            cd L1METML &&
-            chmod +x train_JetClass.sh &&
-            ./train_JetClass.sh ParT full"
+            cd Transformer_MET &&
+            weaver \
+            --data-train "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set0.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set1.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set2.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set3.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set4.root" \
+            --data-val "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set5.root" \
+            --data-test "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set6.root" \
+            --data-config data/JetClass/JetClass_full.yaml --network-config example_ParticleTransformer.py --use-amp \
+            --model-prefix /mettransformervol/saved_models/mettransformer-test/ \
+            --num-workers 2 --fetch-step 0.01 \
+            --batch-size 256 --start-lr 1e-3 \
+            --num-epochs 1 --gpus 0 \
+            --optimizer adam --log /mettransformervol/logs/metttransformer-test.log --predict-output pred.root \
+            --tensorboard JetClass_Pythia_full_ParT \
+            --regression-mode"
         volumeMounts:
         - mountPath: /mettransformervol
           name: mettransformervol
@@ -24,7 +38,7 @@ spec:
             cpu: "10"
             nvidia.com/gpu: "1"
           requests:
-            memory: 10Gi
+            memory: 20Gi
             cpu: "10"
             nvidia.com/gpu: "1"
       volumes:
