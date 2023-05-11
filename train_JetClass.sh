@@ -68,7 +68,7 @@ $CMD \
     --data-test \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set6.root" \
     --data-config data/JetClass/JetClass_${FEATURE_TYPE}.yaml --network-config $modelopts \
-    --model-prefix /mettransformervol/saved_models/mettransformer_v1/ \
+    --model-prefix /mettransformervol/saved_models/mettransformer_test/ \
     $dataopts $batchopts \
     --num-epochs $epochs --gpus 0 \
     --optimizer adam --log /mettransformervol/logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
