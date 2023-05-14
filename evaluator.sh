@@ -16,7 +16,7 @@ suffix=${COMMENT}
 # set the number of gpus for DDP training via `DDP_NGPUS`
 NGPUS=${DDP_NGPUS}
 [[ -z $NGPUS ]] && NGPUS=1
-CMD="python evaluate.py"
+CMD="python evaluator.py"
 
 epochs=1
 samples_per_epoch=$((10000 * 1024 / $NGPUS))
@@ -56,16 +56,20 @@ SAMPLE_TYPE=Pythia
 
 $CMD \
     --data-train \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set0.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set1.root" \
-    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
-    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set3.root" \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set4.root" \
+    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set5.root" \
+    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set6.root" \
     --data-config data/JetClass/JetClass_${FEATURE_TYPE}.yaml --network-config $modelopts \
-    --model-prefix /mettransformervol/saved_models/ \
+    --model-prefix /mettransformervol/saved_models/mettransformer_v1/ \
     $dataopts $batchopts \
     --num-epochs $epochs --gpus 0 \
-    --optimizer adam --log logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --optimizer adam --log /mettransformervol/logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}${suffix} \
     --regression-mode \
-    --data-fraction 0.1 \
+    --predict \
     "${@:3}"
