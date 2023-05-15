@@ -22,7 +22,7 @@ else
     CMD="weaver"
 fi
 
-epochs=50
+epochs=75
 dataopts="--num-workers 2 --fetch-step 0.01"
 
 # PN, PFN, PCNN, ParT
@@ -59,14 +59,14 @@ SAMPLE_TYPE=Pythia
 
 $CMD \
     --data-train \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set0.root" \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set1.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set3.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set4.root" \
-    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set5.root" \
-    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set5.root" \
     "${DATADIR}/perfNano_TTbar_PU200.110X_set6.root" \
+    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set1.root" \
+    --data-test \
+    "${DATADIR}/perfNano_TTbar_PU200.110X_set0.root" \
     --data-config data/JetClass/JetClass_${FEATURE_TYPE}.yaml --network-config $modelopts \
     --model-prefix /mettransformervol/saved_models/mettransformer_test/ \
     $dataopts $batchopts \
