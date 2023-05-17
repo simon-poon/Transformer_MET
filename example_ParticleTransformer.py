@@ -1,6 +1,7 @@
 import torch
 import sys
 sys.path.insert(1, '/home/jovyan/Transformer_MET')
+from loss import *
 from transformer import ParticleTransformer
 from weaver.utils.logger import _logger
 
@@ -61,4 +62,4 @@ def get_model(data_config, **kwargs):
 
 
 def get_loss(data_config, **kwargs):
-    return torch.nn.MSELoss()
+    return custom_loss
