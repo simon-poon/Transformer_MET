@@ -33,7 +33,7 @@ def get_model(data_config, **kwargs):
         # network configurations
         pair_input_dim=4,
         use_pre_activation_pair=False,
-        embed_dims=[128, 512, 128],
+        embed_dims=[128, 512, 100],
         pair_embed_dims=[64, 64, 64],
         num_heads=8,
         num_layers=8,
