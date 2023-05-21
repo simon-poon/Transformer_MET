@@ -45,14 +45,14 @@ preprocess:
 
 inputs:
    pf_points:
-      length: 128
-      pad_mode: wrap
+      length: 100
+      pad_mode: constant
       vars: 
          - [L1PuppiCands_eta, null, null, null, null]
          - [L1PuppiCands_phi, null, null, null, null]
    pf_features:
-      length: 128
-      pad_mode: wrap
+      length: 100
+      pad_mode: constant
       vars: 
       ### [format 1]: var_name (no transformation)
       ### [format 2]: [var_name, 
@@ -68,15 +68,15 @@ inputs:
          - [L1PuppiCands_pdgId, null, null, null, null]
          - [L1PuppiCands_charge, null, null, null, null]
    pf_vectors:
-      length: 128
-      pad_mode: wrap
+      length: 100
+      pad_mode: constant
       vars: 
          - [px, null, null, null, null]
          - [py, null, null, null, null]
          - [pz, null, null, null, null]
          - [energy, null, null, null, null]
    pf_mask:
-      length: 128
+      length: 100
       pad_mode: constant
       vars: 
          - [part_mask, null, null, null, null]
