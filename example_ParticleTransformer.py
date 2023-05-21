@@ -35,7 +35,7 @@ def get_model(data_config, **kwargs):
         use_pre_activation_pair=False,
         embed_dims=[128, 512, 100],
         pair_embed_dims=[64, 64, 64],
-        num_heads=8,
+        num_heads=5,
         num_layers=8,
         num_cls_layers=2,
         block_params=None,
