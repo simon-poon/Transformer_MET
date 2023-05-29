@@ -7,6 +7,7 @@ import warnings
 import copy
 import torch
 import torch.nn as nn
+import numpy as np
 from functools import partial
 
 from weaver.utils.logger import _logger
@@ -481,55 +482,39 @@ class ParticleTransformer(nn.Module):
                  **kwargs) -> None:
         super().__init__(**kwargs)
 
-        self.trimmer = SequenceTrimmer(enabled=trim and not for_inference)
-        self.for_inference = for_inference
-        self.use_amp = use_amp
+        emb_input_dim:   {0: 6, 1: 4}
+        self.embedding1 = nn.Embedding(6,2)
+        self.embedding2 = nn.Embedding(4,2)
+        module_list = []
+        module_list.extend([
+            nn.Linear(8, 12),
+            nn.BatchNorm1d(100, momentum=0.95),
+            nn.Tanh(),
+            nn.Linear(12,36),
+            nn.BatchNorm1d(100, momentum=0.95),
+            nn.Tanh(),
+            nn.Linear(36,1),
+            ])
+        
+        self.MLP = nn.Sequential(*module_list)
 
-        embed_dim = embed_dims[-1] if len(embed_dims) > 0 else input_dim
-        default_cfg = dict(embed_dim=embed_dim, num_heads=num_heads, ffn_ratio=4,
-                           dropout=0.1, attn_dropout=0.1, activation_dropout=0.1,
-                           add_bias_kv=False, activation=activation,
-                           scale_fc=True, scale_attn=True, scale_heads=True, scale_resids=True)
-
-        cfg_block = copy.deepcopy(default_cfg)
-        if block_params is not None:
-            cfg_block.update(block_params)
-        _logger.info('cfg_block: %s' % str(cfg_block))
-
-        cfg_cls_block = copy.deepcopy(default_cfg)
-        if cls_block_params is not None:
-            cfg_cls_block.update(cls_block_params)
-        _logger.info('cfg_cls_block: %s' % str(cfg_cls_block))
-
-        self.pair_extra_dim = pair_extra_dim
-        self.embed = Embed(input_dim, embed_dims, activation=activation) if len(embed_dims) > 0 else nn.Identity()
-        self.pair_embed = PairEmbed(
-            pair_input_dim, pair_extra_dim, pair_embed_dims + [cfg_block['num_heads']],
-            remove_self_pair=remove_self_pair, use_pre_activation_pair=use_pre_activation_pair,
-            for_onnx=for_inference) if pair_embed_dims is not None and pair_input_dim + pair_extra_dim > 0 else None
-        self.blocks = nn.ModuleList([Block(**cfg_block) for _ in range(num_layers)])
-        self.cls_blocks = nn.ModuleList([Block(**cfg_cls_block) for _ in range(num_cls_layers)])
-        self.norm = nn.LayerNorm(embed_dim)
-
-        if fc_params is not None:
-            fcs = []
-            in_dim = embed_dim
-            for out_dim, drop_rate in fc_params:
-
-                fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
-                in_dim = out_dim
-            fcs.append(nn.Linear(in_dim, in_dim))
-            self.fc = nn.Sequential(*fcs)
-        else:
-            self.fc = None
-
-        # init
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim), requires_grad=True)
-        trunc_normal_(self.cls_token, std=.02)
-
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'cls_token', }
+        self.d_encoding = {
+    'L1PuppiCands_charge': {-999.0: 0,
+                            -1.0: 1,
+                            0.0: 2,
+                            1.0: 3},
+    'L1PuppiCands_pdgId': {-999.0: 0,
+                           -211.0: 1,
+                           -130.0: 2,
+                           -22.0: 3,
+                           -13.0: 4,
+                           -11.0: 5,
+                           11.0: 5,
+                           13.0: 4,
+                           22.0: 3,
+                           130.0: 2,
+                           211.0: 1}
+}
 
     def forward(self, x, v=None, mask=None, uu=None, uu_idx=None):
         # x: (N, C, P)
@@ -537,38 +522,33 @@ class ParticleTransformer(nn.Module):
         # mask: (N, 1, P) -- real particle = 1, padded = 0
         # for pytorch: uu (N, C', num_pairs), uu_idx (N, 2, num_pairs)
         # for onnx: uu (N, C', P, P), uu_idx=None
-
-        with torch.no_grad():
-            mask = mask.bool()
-            padding_mask = ~mask.squeeze(1)  # (N, P)
-
-        with torch.cuda.amp.autocast(enabled=self.use_amp):
-            # input embedding
-            x = self.embed(x).masked_fill(~mask.permute(2, 0, 1), 0)  # (P, N, C)
-            attn_mask = None
-            if (v is not None or uu is not None) and self.pair_embed is not None:
-                attn_mask = self.pair_embed(v, uu).view(-1, v.size(-1), v.size(-1))  # (N*num_heads, P, P)
-
-            # transform
-            for block in self.blocks:
-                x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
-
-            # extract class token
-            cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
-            for block in self.cls_blocks:
-                cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
-
-            x_cls = self.norm(cls_tokens).squeeze(0)
-
-            if self.fc is None:
-                return x_cls
-            weights = self.fc(x_cls)
-            weights_expanded = weights.unsqueeze(-1)
-            pxpy = v[:,0:2,:]
-            pxpy = torch.swapaxes(pxpy, 1, 2)
-            weight_mul = torch.mul(weights_expanded,pxpy)
-            sum_pxpy = torch.sum(weight_mul, dim=1)
-            return sum_pxpy
+        x = torch.swapaxes(x,2,1)
+        v = torch.swapaxes(v,2,1)
+        for i in range(len(x[:,0,4])):
+            for j in range(len(x[0,:,4])):
+                if x[i,j,4] == 1:
+                    continue
+                elif (x[i,j,4] == 9999) or (x[i,j,5] == 9999):
+                    x[i,j,4] = 0
+                    x[i,j,5] = 0
+                else:
+                    x[i,j,4] = self.d_encoding['L1PuppiCands_pdgId'].get(float(x[i,j,4]))
+                    x[i,j,5] = self.d_encoding['L1PuppiCands_charge'].get(float(x[i,j,5]))
+        embed1 = self.embedding1(x[:,:,4].to(torch.int64))
+        embed2 = self.embedding2(x[:,:,5].to(torch.int64))
+        h = torch.cat((x[:,:,0:4],embed1,embed2),dim=2)
+        mlp = self.MLP(h)
+        #with torch.no_grad():
+        #    print(dict(self.batchnorm.named_parameters()))
+        #    self.batchnorm.weight = nn.Parameter(torch.tensor[1, -1, 0, 1])
+        if mlp.is_cuda == True:
+            met_weight_minus_one = torch.nn.functional.batch_norm(mlp, torch.zeros(100).cuda(), torch.ones(100).cuda(), weight=torch.ones(100).cuda(), bias= (-1*torch.ones(100)).cuda(), training=False, eps=False)
+        elif mlp.is_cuda == False:
+            met_weight_minus_one = torch.nn.functional.batch_norm(mlp, torch.zeros(100).cpu(), torch.ones(100).cpu(), weight=torch.ones(100).cpu(), bias= (-1*torch.ones(100)).cpu(), training=False, eps=False)
+        pxpy = v[:,:,0:2]
+        mul = met_weight_minus_one * pxpy
+        output = torch.sum(mul,dim=1)
+        return output
 
 
 class ParticleTransformerTagger(nn.Module):
