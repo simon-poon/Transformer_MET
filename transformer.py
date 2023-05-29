@@ -502,7 +502,8 @@ class ParticleTransformer(nn.Module):
     'L1PuppiCands_charge': {-999.0: 0,
                             -1.0: 1,
                             0.0: 2,
-                            1.0: 3},
+                            1.0: 3,
+                            9999: 0},
     'L1PuppiCands_pdgId': {-999.0: 0,
                            -211.0: 1,
                            -130.0: 2,
@@ -513,7 +514,8 @@ class ParticleTransformer(nn.Module):
                            13.0: 4,
                            22.0: 3,
                            130.0: 2,
-                           211.0: 1}
+                           211.0: 1,
+                           9999: 0}
 }
 
     def forward(self, x, v=None, mask=None, uu=None, uu_idx=None):
@@ -524,16 +526,21 @@ class ParticleTransformer(nn.Module):
         # for onnx: uu (N, C', P, P), uu_idx=None
         x = torch.swapaxes(x,2,1)
         v = torch.swapaxes(v,2,1)
-        for i in range(len(x[:,0,4])):
-            for j in range(len(x[0,:,4])):
-                if x[i,j,4] == 1:
-                    continue
-                elif (x[i,j,4] == 9999) or (x[i,j,5] == 9999):
-                    x[i,j,4] = 0
-                    x[i,j,5] = 0
-                else:
-                    x[i,j,4] = self.d_encoding['L1PuppiCands_pdgId'].get(float(x[i,j,4]))
-                    x[i,j,5] = self.d_encoding['L1PuppiCands_charge'].get(float(x[i,j,5]))
+        if x[0,0,4] == 1:
+            pass
+        else:
+            uniq,inv = torch.unique(x[:,:,4],return_inverse = True)
+            if torch.tensor([self.d_encoding['L1PuppiCands_pdgId'].get(float(i)) for i in uniq]).is_cuda == True:
+                x[:,:,4] = torch.tensor([self.d_encoding['L1PuppiCands_pdgId'].get(float(i)) for i in uniq])[inv].reshape(tuple(x[:,:,4].size()))
+
+                uniq,inv = torch.unique(x[:,:,5],return_inverse = True)
+                x[:,:,5] = torch.tensor([self.d_encoding['L1PuppiCands_charge'].get(float(i)) for i in uniq])[inv].reshape(tuple(x[:,:,5].size()))
+
+            else:
+                x[:,:,4] = torch.tensor([self.d_encoding['L1PuppiCands_pdgId'].get(float(i)) for i in uniq])[inv.cpu()].reshape(tuple(x[:,:,4].size()))
+
+                uniq,inv = torch.unique(x[:,:,5],return_inverse = True)
+                x[:,:,5] = torch.tensor([self.d_encoding['L1PuppiCands_charge'].get(float(i)) for i in uniq])[inv.cpu()].reshape(tuple(x[:,:,5].size()))
         embed1 = self.embedding1(x[:,:,4].to(torch.int64))
         embed2 = self.embedding2(x[:,:,5].to(torch.int64))
         h = torch.cat((x[:,:,0:4],embed1,embed2),dim=2)
