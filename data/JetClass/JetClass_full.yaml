@@ -64,8 +64,8 @@ inputs:
          - [L1PuppiCands_pt, null, null, null, null]  #clip_max(500)
          - [L1PuppiCands_eta, null, null, null, null]
          - [L1PuppiCands_phi, null, null, null, null]
-         - [L1PuppiCands_puppiWeight, null, null, null, null]
-         - [L1PuppiCands_pdgId, null, null, null, null]
+         - [L1PuppiCands_puppiWeight, null, null, null, null, 9999]
+         - [L1PuppiCands_pdgId, null, null, null, null, 9999]
          - [L1PuppiCands_charge, null, null, null, null]
    pf_vectors:
       length: 100
