@@ -564,9 +564,13 @@ class ParticleTransformer(nn.Module):
                 return x_cls
             weights = self.fc(x_cls)
             weights_expanded = weights.unsqueeze(-1)
+            if weights_expanded.is_cuda == True:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cuda(), torch.ones(100).cuda(), weight=torch.ones(100).cuda(), bias= (-1*torch.ones(100)).cuda(), training=False, eps=False)
+            elif weights_expanded.is_cuda == False:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cpu(), torch.ones(100).cpu(), weight=torch.ones(100).cpu(), bias= (-1*torch.ones(100)).cpu(), training=False, eps=False)
             pxpy = v[:,0:2,:]
             pxpy = torch.swapaxes(pxpy, 1, 2)
-            weight_mul = torch.mul(weights_expanded,pxpy)
+            weight_mul = torch.mul(met_weight_minus_one,pxpy)
             sum_pxpy = torch.sum(weight_mul, dim=1)
             return sum_pxpy
 
