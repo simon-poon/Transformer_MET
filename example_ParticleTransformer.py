@@ -5,7 +5,6 @@ from loss import *
 from transformer import ParticleTransformer
 from weaver.utils.logger import _logger
 
-
 '''
 Link to the full model implementation:
 https://github.com/hqucms/weaver-core/blob/main/weaver/nn/model/ParticleTransformer.py
@@ -33,9 +32,9 @@ def get_model(data_config, **kwargs):
         # network configurations
         pair_input_dim=4,
         use_pre_activation_pair=False,
-        embed_dims=[128, 512, 100],
+        embed_dims=[128, 512, 128],
         pair_embed_dims=[64, 64, 64],
-        num_heads=5,
+        num_heads=8,
         num_layers=8,
         num_cls_layers=2,
         block_params=None,
@@ -62,4 +61,4 @@ def get_model(data_config, **kwargs):
 
 
 def get_loss(data_config, **kwargs):
-    return custom_loss
+    return torch.nn.CrossEntropyLoss()
