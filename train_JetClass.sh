@@ -22,14 +22,16 @@ else
     CMD="weaver"
 fi
 
-epochs=75
+epochs=50
+samples_per_epoch=$((10000 * 1024 / $NGPUS))
+samples_per_epoch_val=$((10000 * 128))
 dataopts="--num-workers 2 --fetch-step 0.01"
 
 # PN, PFN, PCNN, ParT
 model=$1
 if [[ "$model" == "ParT" ]]; then
     modelopts="example_ParticleTransformer.py --use-amp"
-    batchopts="--batch-size 256 --start-lr 1e-3"
+    batchopts="--batch-size 512 --start-lr 1e-3"
 elif [[ "$model" == "PN" ]]; then
     modelopts="networks/example_ParticleNet.py"
     batchopts="--batch-size 512 --start-lr 1e-2"
@@ -53,25 +55,19 @@ if ! [[ "${FEATURE_TYPE}" =~ ^(full|kin|kinpid)$ ]]; then
     exit 1
 fi
 
-
 # currently only Pythia
 SAMPLE_TYPE=Pythia
 
 $CMD \
     --data-train \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set2.root" \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set3.root" \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set4.root" \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set5.root" \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set6.root" \
-    --data-val "${DATADIR}/perfNano_TTbar_PU200.110X_set1.root" \
+    "HToBB:${DATADIR}/${SAMPLE_TYPE}/train_100M/HToBB_*.root" \
+    --data-val "${DATADIR}/${SAMPLE_TYPE}/val_5M/*.root" \
     --data-test \
-    "${DATADIR}/perfNano_TTbar_PU200.110X_set0.root" \
+    "HToBB:${DATADIR}/${SAMPLE_TYPE}/test_20M/HToBB_*.root" \
     --data-config data/JetClass/JetClass_${FEATURE_TYPE}.yaml --network-config $modelopts \
-    --model-prefix /mettransformervol/saved_models/mettransformer_test/ \
+    --model-prefix training/JetClass/${SAMPLE_TYPE}/${FEATURE_TYPE}/${model}/{auto}${suffix}/net \
     $dataopts $batchopts \
-    --num-epochs $epochs --gpus 0 \
-    --optimizer adam --log /mettransformervol/logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
+    --samples-per-epoch ${samples_per_epoch} --samples-per-epoch-val ${samples_per_epoch_val} --num-epochs $epochs --gpus 0 \
+    --optimizer ranger --log logs/JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}_{auto}${suffix}.log --predict-output pred.root \
     --tensorboard JetClass_${SAMPLE_TYPE}_${FEATURE_TYPE}_${model}${suffix} \
-    --regression-mode \
     "${@:3}"
