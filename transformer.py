@@ -513,12 +513,12 @@ class ParticleTransformer(nn.Module):
 
         if fc_params is not None:
             fcs = []
-            in_dim = embed_dim
+            in_dim = 100
             for out_dim, drop_rate in fc_params:
 
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(in_dim, in_dim))
+            fcs.append(nn.Linear(embed_dim, in_dim))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
@@ -557,9 +557,7 @@ class ParticleTransformer(nn.Module):
             cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
             for block in self.cls_blocks:
                 cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
-
             x_cls = self.norm(cls_tokens).squeeze(0)
-
             if self.fc is None:
                 return x_cls
             weights = self.fc(x_cls)
