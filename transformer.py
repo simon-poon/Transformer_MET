@@ -1,4 +1,5 @@
 ''' Particle Transformer (ParT)
+
 Paper: "Particle Transformer for Jet Tagging" - https://arxiv.org/abs/2202.03772
 '''
 import math
@@ -411,6 +412,7 @@ class Block(nn.Module):
             padding_mask (ByteTensor, optional): binary
                 ByteTensor of shape `(batch, seq_len)` where padding
                 elements are indicated by ``1``.
+
         Returns:
             encoded output of shape `(seq_len, batch, embed_dim)`
         """
@@ -515,10 +517,9 @@ class ParticleTransformer(nn.Module):
             fcs = []
             in_dim = embed_dim
             for out_dim, drop_rate in fc_params:
-
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(in_dim, in_dim))
+            fcs.append(nn.Linear(in_dim, num_classes))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
@@ -537,14 +538,21 @@ class ParticleTransformer(nn.Module):
         # mask: (N, 1, P) -- real particle = 1, padded = 0
         # for pytorch: uu (N, C', num_pairs), uu_idx (N, 2, num_pairs)
         # for onnx: uu (N, C', P, P), uu_idx=None
-
+        print("------------")
+        print("------------")
+        print("------------")
+        print('first x: ', x.size())
         with torch.no_grad():
-            mask = mask.bool()
+            if not self.for_inference:
+                if uu_idx is not None:
+                    uu = build_sparse_tensor(uu, uu_idx, x.size(-1))
+            x, v, mask, uu = self.trimmer(x, v, mask, uu)
+            print("after trimmer: ", x.size())
             padding_mask = ~mask.squeeze(1)  # (N, P)
-
         with torch.cuda.amp.autocast(enabled=self.use_amp):
             # input embedding
             x = self.embed(x).masked_fill(~mask.permute(2, 0, 1), 0)  # (P, N, C)
+            print("embed x: ", x.size())
             attn_mask = None
             if (v is not None or uu is not None) and self.pair_embed is not None:
                 attn_mask = self.pair_embed(v, uu).view(-1, v.size(-1), v.size(-1))  # (N*num_heads, P, P)
@@ -552,7 +560,7 @@ class ParticleTransformer(nn.Module):
             # transform
             for block in self.blocks:
                 x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
-
+                print("block: ", x.size())
             # extract class token
             cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
             for block in self.cls_blocks:
@@ -560,19 +568,14 @@ class ParticleTransformer(nn.Module):
 
             x_cls = self.norm(cls_tokens).squeeze(0)
 
+            # fc
             if self.fc is None:
                 return x_cls
-            weights = self.fc(x_cls)
-            weights_expanded = weights.unsqueeze(-1)
-            if weights_expanded.is_cuda == True:
-                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cuda(), torch.ones(100).cuda(), weight=torch.ones(100).cuda(), bias= (-1*torch.ones(100)).cuda(), training=False, eps=False)
-            elif weights_expanded.is_cuda == False:
-                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cpu(), torch.ones(100).cpu(), weight=torch.ones(100).cpu(), bias= (-1*torch.ones(100)).cpu(), training=False, eps=False)
-            pxpy = v[:,0:2,:]
-            pxpy = torch.swapaxes(pxpy, 1, 2)
-            weight_mul = torch.mul(met_weight_minus_one,pxpy)
-            sum_pxpy = torch.sum(weight_mul, dim=1)
-            return sum_pxpy
+            output = self.fc(x_cls)
+            if self.for_inference:
+                output = torch.softmax(output, dim=1)
+            # print('output:\n', output)
+            return output
 
 
 class ParticleTransformerTagger(nn.Module):
