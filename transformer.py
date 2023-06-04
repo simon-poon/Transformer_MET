@@ -418,7 +418,7 @@ class Block(nn.Module):
         if x_cls is not None:
             with torch.no_grad():
                 # prepend one element for x_cls: -> (batch, 1+seq_len)
-                padding_mask = torch.cat((torch.zeros_like(padding_mask[:, :1]), padding_mask), dim=1)
+                padding_mask = torch.cat((torch.zeros_like(padding_mask), padding_mask), dim=1)
             # class attention: https://arxiv.org/pdf/2103.17239.pdf
             residual = x_cls
             u = torch.cat((x_cls, x), dim=0)  # (seq_len+1, batch, embed_dim)
@@ -518,13 +518,13 @@ class ParticleTransformer(nn.Module):
 
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(embed_dim, in_dim))
+            fcs.append(nn.Linear(embed_dim, 1))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
 
         # init
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim), requires_grad=True)
+        self.cls_token = nn.Parameter(torch.zeros(100, 1, embed_dim), requires_grad=True)
         trunc_normal_(self.cls_token, std=.02)
 
     @torch.jit.ignore
@@ -554,22 +554,21 @@ class ParticleTransformer(nn.Module):
                 x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
 
             # extract class token
-            cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
+            cls_tokens = self.cls_token.expand(-1, x.size(1), -1)  # (1, N, C)
             for block in self.cls_blocks:
                 cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
             x_cls = self.norm(cls_tokens).squeeze(0)
             if self.fc is None:
                 return x_cls
             weights = self.fc(x_cls)
-            weights_expanded = weights.unsqueeze(-1)
-            if weights_expanded.is_cuda == True:
-                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cuda(), torch.ones(100).cuda(), weight=torch.ones(100).cuda(), bias= (-1*torch.ones(100)).cuda(), training=False, eps=False)
-            elif weights_expanded.is_cuda == False:
-                met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(100).cpu(), torch.ones(100).cpu(), weight=torch.ones(100).cpu(), bias= (-1*torch.ones(100)).cpu(), training=False, eps=False)
+            weights = torch.permute(weights, (1,2,0))
+            if weights.is_cuda == True:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights, torch.zeros(1).cuda(), torch.ones(1).cuda(), weight=torch.ones(1).cuda(), bias= (-1*torch.ones(1)).cuda(), training=False, eps=False)
+            elif weights.is_cuda == False:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights, torch.zeros(1).cpu(), torch.ones(1).cpu(), weight=torch.ones(1).cpu(), bias= (-1*torch.ones(1)).cpu(), training=False, eps=False)
             pxpy = v[:,0:2,:]
-            pxpy = torch.swapaxes(pxpy, 1, 2)
             weight_mul = torch.mul(met_weight_minus_one,pxpy)
-            sum_pxpy = torch.sum(weight_mul, dim=1)
+            sum_pxpy = torch.sum(weight_mul, dim=2)
             return sum_pxpy
 
 
