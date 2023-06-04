@@ -548,12 +548,11 @@ class ParticleTransformer(nn.Module):
             # transform
             for block in self.blocks:
                 x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
-
             # extract class token
-            cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
-            for block in self.cls_blocks:
-                cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
-            x_cls = self.norm(cls_tokens).squeeze(0)
+            #cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
+            #for block in self.cls_blocks:
+            #    cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
+            x_cls = self.norm(x).squeeze(0)
             if self.fc is None:
                 return x_cls
             weights = self.fc(x_cls)
