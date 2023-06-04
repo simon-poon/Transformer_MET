@@ -416,14 +416,10 @@ class Block(nn.Module):
         """
 
         if x_cls is not None:
-            with torch.no_grad():
-                # prepend one element for x_cls: -> (batch, 1+seq_len)
-                padding_mask = torch.cat((torch.zeros_like(padding_mask), padding_mask), dim=1)
+            residual = x
             # class attention: https://arxiv.org/pdf/2103.17239.pdf
-            residual = x_cls
-            u = torch.cat((x_cls, x), dim=0)  # (seq_len+1, batch, embed_dim)
-            u = self.pre_attn_norm(u)
-            x = self.attn(x_cls, u, u, key_padding_mask=padding_mask)[0]  # (1, batch, embed_dim)
+            x = self.pre_attn_norm(x)
+            x = self.attn(x, x, x, key_padding_mask=padding_mask)[0]  # (1, batch, embed_dim)
         else:
             residual = x
             x = self.pre_attn_norm(x)
@@ -524,7 +520,7 @@ class ParticleTransformer(nn.Module):
             self.fc = None
 
         # init
-        self.cls_token = nn.Parameter(torch.zeros(100, 1, embed_dim), requires_grad=True)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim), requires_grad=True)
         trunc_normal_(self.cls_token, std=.02)
 
     @torch.jit.ignore
@@ -554,14 +550,14 @@ class ParticleTransformer(nn.Module):
                 x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
 
             # extract class token
-            cls_tokens = self.cls_token.expand(-1, x.size(1), -1)  # (1, N, C)
+            cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
             for block in self.cls_blocks:
                 cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
             x_cls = self.norm(cls_tokens).squeeze(0)
             if self.fc is None:
                 return x_cls
             weights = self.fc(x_cls)
-            weights = torch.permute(weights, (1,2,0))
+            weights = torch.permute(weights,(1,2,0))
             if weights.is_cuda == True:
                 met_weight_minus_one = torch.nn.functional.batch_norm(weights, torch.zeros(1).cuda(), torch.ones(1).cuda(), weight=torch.ones(1).cuda(), bias= (-1*torch.ones(1)).cuda(), training=False, eps=False)
             elif weights.is_cuda == False:
