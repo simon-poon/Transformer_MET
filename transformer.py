@@ -431,15 +431,8 @@ class Block(nn.Module):
             residual = x_cls
             #u = torch.cat((x_cls, x), dim=0)  # (seq_len+1, batch, embed_dim)
             x = torch.swapaxes(x,0,2)
-            print(x.size())
             u = self.pre_attn_norm2(x)
-            print()
-            print("---------------")
-            print("x_cls size:  ", x_cls.size())
-            print("u size:  ", u.size())
             x = self.attn2(x_cls, u, u)[0]  # (1, batch, embed_dim)
-            print("post attn:  ", x.size())
-            print("---------------")
         else:
             residual = x
             x = self.pre_attn_norm(x)
