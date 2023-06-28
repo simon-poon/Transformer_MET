@@ -416,14 +416,10 @@ class Block(nn.Module):
         """
 
         if x_cls is not None:
-            with torch.no_grad():
-                # prepend one element for x_cls: -> (batch, 1+seq_len)
-                padding_mask = torch.cat((torch.zeros_like(padding_mask[:, :1]), padding_mask), dim=1)
+            residual = x
             # class attention: https://arxiv.org/pdf/2103.17239.pdf
-            residual = x_cls
-            u = torch.cat((x_cls, x), dim=0)  # (seq_len+1, batch, embed_dim)
-            u = self.pre_attn_norm(u)
-            x = self.attn(x_cls, u, u, key_padding_mask=padding_mask)[0]  # (1, batch, embed_dim)
+            x = self.pre_attn_norm(x)
+            x = self.attn(x, x, x, key_padding_mask=padding_mask)[0]  # (1, batch, embed_dim)
         else:
             residual = x
             x = self.pre_attn_norm(x)
@@ -513,12 +509,12 @@ class ParticleTransformer(nn.Module):
 
         if fc_params is not None:
             fcs = []
-            in_dim = embed_dim
+            in_dim = 100
             for out_dim, drop_rate in fc_params:
 
                 fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(in_dim, in_dim))
+            fcs.append(nn.Linear(embed_dim, 1))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
@@ -537,7 +533,8 @@ class ParticleTransformer(nn.Module):
         # mask: (N, 1, P) -- real particle = 1, padded = 0
         # for pytorch: uu (N, C', num_pairs), uu_idx (N, 2, num_pairs)
         # for onnx: uu (N, C', P, P), uu_idx=None
-
+        actual_inputs = x
+        actual_4_vec = v
         with torch.no_grad():
             mask = mask.bool()
             padding_mask = ~mask.squeeze(1)  # (N, P)
@@ -552,23 +549,23 @@ class ParticleTransformer(nn.Module):
             # transform
             for block in self.blocks:
                 x = block(x, x_cls=None, padding_mask=padding_mask, attn_mask=attn_mask)
-
             # extract class token
-            cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
-            for block in self.cls_blocks:
-                cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
-
-            x_cls = self.norm(cls_tokens).squeeze(0)
-
+            #cls_tokens = self.cls_token.expand(1, x.size(1), -1)  # (1, N, C)
+            #for block in self.cls_blocks:
+            #    cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
+            x_cls = self.norm(x).squeeze(0)
             if self.fc is None:
                 return x_cls
             weights = self.fc(x_cls)
-            weights_expanded = weights.unsqueeze(-1)
+            weights = torch.permute(weights,(1,2,0))
+            if weights.is_cuda == True:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights, torch.zeros(1).cuda(), torch.ones(1).cuda(), weight=torch.ones(1).cuda(), bias= (-1*torch.ones(1)).cuda(), training=False, eps=False)
+            elif weights.is_cuda == False:
+                met_weight_minus_one = torch.nn.functional.batch_norm(weights, torch.zeros(1).cpu(), torch.ones(1).cpu(), weight=torch.ones(1).cpu(), bias= (-1*torch.ones(1)).cpu(), training=False, eps=False)
             pxpy = v[:,0:2,:]
-            pxpy = torch.swapaxes(pxpy, 1, 2)
-            weight_mul = torch.mul(weights_expanded,pxpy)
-            sum_pxpy = torch.sum(weight_mul, dim=1)
-            return sum_pxpy
+            weight_mul = torch.mul(met_weight_minus_one,pxpy)
+            sum_pxpy = torch.sum(weight_mul, dim=2)
+            return sum_pxpy, met_weight_minus_one, actual_inputs, actual_4_vec
 
 
 class ParticleTransformerTagger(nn.Module):
