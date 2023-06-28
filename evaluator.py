@@ -10,6 +10,7 @@ import functools
 import numpy as np
 import math
 import torch
+from get_layer import get_layer_output
 from utils_py import *
 from Write_MET_binned_histogram import *
 from torch.utils.data import DataLoader
@@ -838,12 +839,126 @@ def _main(args):
                 from weaver.utils.nn.tools import evaluate_onnx
                 test_metric, scores, labels, observers = evaluate_onnx(args.model_prefix, test_loader)
             else:
-                test_metric, scores, labels, observers = evaluate(
-                    model, test_loader, dev, epoch=None, for_training=False, tb_helper=tb)
-            _logger.info('Test metric %.5f' % test_metric, color='bold')
-            del test_loader
+                results = get_layer_output(model, test_loader, dev, epoch=None, for_training=False, tb_helper=tb)
 
-        test(labels['truth_pxpy'], scores, observers['puppi_pxpy'], args.model_prefix)
+                
+                eta_part = results[2][:,1,:]
+                predict_weights = results[1]
+                predict_weights = np.squeeze(predict_weights, axis=1)
+                pxpy_part_puppi = results[3][:,0:2,:]
+                pdgID_part = results[2][:,4,:]
+                charge_part = results[2][:,5,:]
+                model_output = results[0]
+
+
+                pt_part_puppi = results[2][:,0,:]
+
+                particle_info_stacked = np.stack((predict_weights, pt_part_puppi,
+                                                eta_part, pdgID_part, charge_part,
+                                                pxpy_part_puppi[:,0,:], pxpy_part_puppi[:,1,:]), axis=-1)
+                dim0 = np.shape(particle_info_stacked)[0] * np.shape(particle_info_stacked)[1]
+                particle_info = particle_info_stacked.reshape(dim0, np.shape(particle_info_stacked)[2])
+
+                predict_weights = particle_info_stacked[:,:,0:1]
+                pxpy_part_puppi = particle_info_stacked[:,:,5:7]
+                print(np.shape(predict_weights))
+                print(np.shape(pxpy_part_puppi))
+                pxpy_part_x_weights = pxpy_part_puppi * predict_weights
+                #pt_part_puppi = np.sqrt(pxpy_part_puppi[:,:,0]**2 + pxpy_part_puppi[:,:,1]**2)
+                pxpy_event_puppi = np.sum(pxpy_part_x_weights, axis=1)/100
+
+                # look for events with 90+ real particles
+                non_zero_particles = np.all(particle_info_stacked != 0,axis=2)
+                num_of_pad_particles_per_event = non_zero_particles.sum(axis=-1)
+                events_with_90plus_nonzero = particle_info_stacked[num_of_pad_particles_per_event > 90]
+                print(events_with_90plus_nonzero)
+
+                def profiled_weights_pt(weights,pt,max_pt,num_of_bins):   # weights and pt are 1D, and per event
+                    bins = np.linspace(1e-10,max_pt,num_of_bins)
+                    weights_binned_avg = []
+                    predict_weights = weights
+                    pt_bin = np.digitize(pt, bins)
+                    for i in range(1,num_of_bins+1):
+                        bin_i = predict_weights[np.where(pt_bin==i)]
+                        bin_i = np.average(bin_i)
+                        weights_binned_avg.append(bin_i)
+                    return weights_binned_avg, bins
+
+                print("by hand:  ", pxpy_event_puppi)
+                print("algo output:  ", model_output)
+
+                print("by hand:  ", pxpy_event_puppi)
+                print("algo output:  ", model_output)
+
+                bins = np.linspace(1e-10,400,40)
+
+                HF_cands = particle_info[(particle_info[:,2] > 3)]
+                HF_cands_weights_binned_avg = []
+                HF_cands_predict_weights = HF_cands[:,0]
+                HF_cands_pt_bin = np.digitize(HF_cands[:,1], bins)
+                for i in range(1,41):
+                    bin_i = HF_cands_predict_weights[np.where(HF_cands_pt_bin==i)]
+                    bin_i = np.average(bin_i)
+                    HF_cands_weights_binned_avg.append(bin_i)
+
+
+                #photons = particle_info[(particle_info[:,3] == 3)]
+                photons = particle_info[(np.abs(particle_info[:,3]) == 22.0)]
+                #photons = photons[(photons[:,3] == 22)]
+                photons_weights_binned_avg = []
+                photons_predict_weights = photons[:,0]
+                photons_pt_bin = np.digitize(photons[:,1], bins)
+                for i in range(1,41):
+                    bin_i = photons_predict_weights[np.where(photons_pt_bin==i)]
+                    bin_i = np.average(bin_i)
+                    photons_weights_binned_avg.append(bin_i)
+
+                print('charges', particle_info[:,4])
+                charged = particle_info[(particle_info[:,4] != 0.0)]
+                charged_weights_binned_avg = []
+                charged_predict_weights = charged[:,0]
+                charged_pt_bin = np.digitize(charged[:,1], bins)
+                for i in range(1,41):
+                    bin_i = charged_predict_weights[np.where(charged_pt_bin==i)]
+                    bin_i = np.average(bin_i)
+                    charged_weights_binned_avg.append(bin_i)
+
+
+                #neutral_hadron = particle_info[(particle_info[:,3] == 2)]
+                neutral_hadron = particle_info[np.abs((particle_info[:,3]) == 130)]
+                #neutral_hadron = neutral_hadron[(neutral_hadron[:,3] == 130)]
+                neutral_hadron_weights_binned_avg = []
+                neutral_hadron_predict_weights = neutral_hadron[:,0]
+                neutral_hadron_pt_bin = np.digitize(neutral_hadron[:,1], bins)
+                for i in range(1,41):
+                    bin_i = neutral_hadron_predict_weights[np.where(neutral_hadron_pt_bin==i)]
+                    bin_i = np.average(bin_i)
+                    neutral_hadron_weights_binned_avg.append(bin_i)
+                import mplhep as hep
+                plt.style.use(hep.style.CMS)
+                plt.plot(bins, HF_cands_weights_binned_avg, linestyle="-", marker=".", markersize=12, label='HF')
+                plt.plot(bins, photons_weights_binned_avg, linestyle="-", marker=".", markersize=12, label='photons')
+                plt.plot(bins, charged_weights_binned_avg, linestyle="-", marker=".", markersize=12, label='charged')
+                plt.plot(bins, neutral_hadron_weights_binned_avg, linestyle="-", marker=".", markersize=12, label='neutral hadron')
+                plt.title('weights vs pt (profiled)')
+                plt.xlabel('pt')
+                plt.ylabel('weights')
+                plt.legend()
+                plt.savefig(f'{args.model_prefix}/weights_pt.png')
+                plt.clf()
+
+
+
+
+
+
+
+            #    test_metric, scores, labels, observers = evaluate(
+            #        model, test_loader, dev, epoch=None, for_training=False, tb_helper=tb)
+            #_logger.info('Test metric %.5f' % test_metric, color='bold')
+            #del test_loader
+
+        #test(labels['truth_pxpy'], scores, observers['puppi_pxpy'], args.model_prefix)
         #print(labels.size)
 
 
