@@ -543,9 +543,15 @@ class ParticleTransformer(nn.Module):
             in_dim = 100
             for out_dim, drop_rate in fc_params:
 
-                fcs.append(nn.Sequential(nn.Linear(in_dim, out_dim), nn.ReLU(), nn.Dropout(drop_rate)))
+                fcs.append(nn.Sequential(nn.Linear(1, 64), nn.ReLU(), nn.Dropout(drop_rate)),
+                            nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Dropout(drop_rate)),
+                            nn.Sequential(nn.Linear(32, 16), nn.ReLU(), nn.Dropout(drop_rate)),
+                            nn.Sequential(nn.Linear(16, 1), nn.ReLU(), nn.Dropout(drop_rate)))
                 in_dim = out_dim
-            fcs.append(nn.Linear(embed_dim, in_dim))
+            fcs.append(nn.Sequential(nn.Linear(1, 64), nn.ReLU(), nn.Dropout()))
+            fcs.append(nn.Sequential(nn.Linear(64, 32), nn.ReLU(), nn.Dropout()))
+            fcs.append(nn.Sequential(nn.Linear(32, 16), nn.ReLU(), nn.Dropout()))
+            fcs.append(nn.Sequential(nn.Linear(16, 1), nn.ReLU(), nn.Dropout()))
             self.fc = nn.Sequential(*fcs)
         else:
             self.fc = None
@@ -584,12 +590,13 @@ class ParticleTransformer(nn.Module):
             for block in self.cls_blocks:
                 cls_tokens = block(x, x_cls=cls_tokens, padding_mask=padding_mask)
             weights_expanded = torch.permute(cls_tokens,(1,0,2))
-            print(weights_expanded.size())
+            x_cls = torch.swapaxes(weights_expanded,1,2)
             #x_cls = self.norm(cls_tokens).squeeze(0)
             #if self.fc is None:
             #    return x_cls
-            #weights = self.fc(x_cls)
+            weights_expanded = self.fc(x_cls)
             #weights_expanded = weights.unsqueeze(-1)
+            weights_expanded = torch.swapaxes(weights_expanded,1,2)
             if weights_expanded.is_cuda == True:
                 met_weight_minus_one = torch.nn.functional.batch_norm(weights_expanded, torch.zeros(1).cuda(), torch.ones(1).cuda(), weight=torch.ones(1).cuda(), bias= (-1*torch.ones(1)).cuda(), training=False, eps=False)
             elif weights_expanded.is_cuda == False:
