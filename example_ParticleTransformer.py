@@ -33,13 +33,13 @@ def get_model(data_config, **kwargs):
         # network configurations
         pair_input_dim=3,
         use_pre_activation_pair=False,
-        embed_dims=[128, 512, 100],
-        pair_embed_dims=[64, 64, 64],
-        num_heads=5,
+        embed_dims=[128, 64, 32],
+        pair_embed_dims=[32, 32, 32],
+        num_heads=4,
         num_layers=4,
         num_cls_layers=0,
-        block_params=None,
-        cls_block_params={'dropout': 0, 'attn_dropout': 0, 'activation_dropout': 0},
+        block_params={'dropout': 0.3, 'attn_dropout': 0.3, 'activation_dropout': 0.3},
+        cls_block_params={'dropout': 0.3, 'attn_dropout': 0.3, 'activation_dropout': 0.3},
         fc_params=[],
         activation='gelu',
         # misc
