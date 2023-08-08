@@ -14,13 +14,13 @@ spec:
         - " git clone https://github.com/simon-poon/Transformer_MET.git &&
             cd Transformer_MET &&
             weaver \
-            --data-train "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set0.root" \
-            "/mettransformervol/perfNano_TTbar_PU200.110X_set1.root" \
-            "/mettransformervol/perfNano_TTbar_PU200.110X_set2.root" \
+            --data-train "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set2.root" \
             "/mettransformervol/perfNano_TTbar_PU200.110X_set3.root" \
             "/mettransformervol/perfNano_TTbar_PU200.110X_set4.root" \
-            --data-val "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set5.root" \
-            --data-test "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set6.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set5.root" \
+            "/mettransformervol/perfNano_TTbar_PU200.110X_set6.root" \
+            --data-val "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set0.root" \
+            --data-test "/mettransformervol/perfNano_TTbar_PU200.110X/perfNano_TTbar_PU200.110X_set1.root" \
             --data-config data/JetClass/JetClass_full.yaml --network-config example_ParticleTransformer.py --use-amp \
             --model-prefix /mettransformervol/saved_models/mettransformer-test/ \
             --num-workers 2 --fetch-step 0.01 \
